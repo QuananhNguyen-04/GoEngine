@@ -143,8 +143,16 @@ def main(board: Board):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-            elif event.key == pygame.K_z:
+            elif event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_CTRL:
                 # board.undo()
+                if len(moves) == 0:
+                    continue
+                (x, y) = moves[-1]
+                stone = board.search(point = (x, y))
+                if stone:
+                    stone.remove()
+                    board.turn()
+                    moves.pop()
                 pass
             elif event.key == pygame.K_r:
                 board.turn()
