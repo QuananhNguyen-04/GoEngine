@@ -10,6 +10,8 @@ for this library, forming a fully working go board together.
 
 """
 
+import numpy as np
+
 __author__ = "Aku Kotkavuo <aku@hibana.net>"
 __version__ = "0.1"
 
@@ -41,13 +43,15 @@ class Stone(object):
     @property
     def neighbors(self):
         """Return a list of neighboring points."""
-        neighboring = [(self.point[0] - 1, self.point[1]),
-                       (self.point[0] + 1, self.point[1]),
-                       (self.point[0], self.point[1] - 1),
-                       (self.point[0], self.point[1] + 1)]
+        neighboring = [
+            (self.point[0] - 1, self.point[1]),
+            (self.point[0] + 1, self.point[1]),
+            (self.point[0], self.point[1] - 1),
+            (self.point[0], self.point[1] + 1),
+        ]
         # clip neighbor
         for point in neighboring:
-            if not 0 < point[0] < 20 or not 0 < point[1] < 20:
+            if not 0 < point[0] < 19 or not 0 < point[1] < 19:
                 neighboring.remove(point)
         return neighboring
 
@@ -84,7 +88,7 @@ class Stone(object):
 
 
 class Group(object):
-    def __init__(self, board, stone):
+    def __init__(self, board, stone: Stone):
         """Create and initialize a new group.
 
         Arguments:
@@ -94,8 +98,9 @@ class Group(object):
         """
         self.board = board
         self.board.groups.append(self)
-        self.stones = [stone]
+        self.stones : list[Stone] = [stone]
         self.liberties = None
+        self.color = stone.color
 
     def merge(self, group):
         """Merge two groups.
@@ -133,6 +138,8 @@ class Group(object):
             for liberty in stone.liberties:
                 liberties.append(liberty)
         self.liberties = set(liberties)
+        # print(self)
+        # print(self.liberties)
         if len(self.liberties) == 0:
             self.remove()
 
@@ -144,8 +151,12 @@ class Group(object):
 class Board(object):
     def __init__(self):
         """Create and initialize an empty board."""
-        self.groups = []
+        self.groups: list[Group] = []
         self.next = BLACK
+        self.influence = np.zeros(
+            (19, 19), dtype=int
+        )  # 19 * 19 array to hold self influence
+        self.stone = np.zeros((19, 19), dtype=int)
 
     def search(self, point=None, points=[]):
         """Search the board for a stone.
@@ -160,9 +171,9 @@ class Board(object):
 
         """
         stones = []
-        print("groups")
-        for sth in self.groups:
-            print(sth)
+        # print("groups")
+        # for sth in self.groups:
+        #     print(sth)
         for group in self.groups:
             for stone in group.stones:
                 if stone.point == point and not points:
@@ -179,3 +190,45 @@ class Board(object):
         else:
             self.next = BLACK
             return WHITE
+
+    def calculate_winner(self):
+        def propagation(point, color=0):
+            # print(point)
+            influence = 3
+            if color == 0: # BLACK
+                bias = 1
+            if color == 1: # WHITE
+                bias = -1
+            self.influence[point[1]][point[0]] = bias * (influence)
+            for dx in range(-2, 3):
+                for dy in range(-2, 3):
+                    pos = (point[1] + dy, point[0] + dx)
+                    if pos[0] < 0 or pos[0] > 18 or pos[1] < 0 or pos[1] > 18 :
+                        continue
+                    if self.stone[pos[0]][pos[1]] != 0:
+                        continue
+                    # print("dx, dy", dx, dy, influence - abs(dx) - abs(dy))
+                    temp_influence = bias * max(
+                        (influence - abs(dx) - abs(dy)), 0
+                    )
+                    if self.influence[pos[0]][pos[1]] * bias <= 0:
+                        self.influence[pos[0]][pos[1]] += temp_influence
+                    else:
+                        self.influence[pos[0]][pos[1]] = bias * max(bias * self.influence[pos[0]][pos[1]], bias * temp_influence)
+
+        for group in self.groups:
+            for stone in group.stones:
+                if stone.color == BLACK:
+                    self.stone[stone.point[1]][stone.point[0]] = 1
+                elif stone.color == WHITE:
+                    self.stone[stone.point[1]][stone.point[0]] = -1
+        for group in self.groups:
+            for stone in group.stones:
+                if stone.color == BLACK:
+                    # self.influence[stone.point[1]][stone.point[0]] = 5
+                    propagation(stone.point, 0)
+                if stone.color == WHITE:
+                    # self.influence[stone.point[1]][stone.point[0]] = -5
+                    propagation(stone.point, 1)
+        print(self.influence)
+        # print(self.stone)

@@ -16,7 +16,7 @@ import go
 # from sys import exit
 
 BACKGROUND = "images/ramin.jpg"
-BOARD_SIZE = (820, 820)
+BOARD_SIZE = (820, 620)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -111,13 +111,13 @@ class Board(go.Board):
             added_stone.group.update_liberties()
 
 
-def main():
+def main(board: Board):
     running = True
     # border = board.outline
     border = pygame.Rect(board.outline[0] - board.square_size // 2, board.outline[1] - board.square_size // 2, board.square_size * 19 + board.square_size // 2, board.square_size * 19 + board.square_size // 2)
     while running:
         # pygame.time.wait(250)
-        event = pygame.event.wait()
+        event = pygame.event.poll()
         # for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -131,21 +131,30 @@ def main():
                 stone = board.search(point=(x, y))
                 if stone:
                     stone.remove()
+                    board.turn()
                 else:
-                    added_stone = Stone(board, (x, y), board.turn())
+                    added_stone = Stone(board, (x, y), board.next)
+                    board.turn()
                 board.update_liberties(added_stone)
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-            if event.key == pygame.K_z:
+            elif event.key == pygame.K_z:
                 # board.undo()
                 pass
+            elif event.key == pygame.K_r:
+                board.turn()
+            elif event.key == pygame.K_SPACE:
+                # calculate and end the game
+                board.calculate_winner()
+                pass
+
     pygame.quit()
 
 if __name__ == "__main__":
     pygame.init()
     pygame.display.set_caption("Goban")
-    screen = pygame.display.set_mode(BOARD_SIZE, 0, 32)
+    screen = pygame.display.set_mode(BOARD_SIZE, 0 | pygame.SCALED | pygame.RESIZABLE | pygame.FULLSCREEN , 32)
     background = pygame.image.load(BACKGROUND).convert()
     board = Board()
-    main()
+    main(board)
