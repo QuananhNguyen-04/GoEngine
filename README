@@ -1,1 +1,5 @@
 Go library written in pure Python and an accompanying PyGame-based GUI module.
+Modified from Goban template, making more scallable and less heavy computing.
+The Go engine.
+
+QuananhNguyen-04
