@@ -113,6 +113,7 @@ class Board(go.Board):
 
 def main(board: Board):
     running = True
+    moves = []
     # border = board.outline
     border = pygame.Rect(board.outline[0] - board.square_size // 2, board.outline[1] - board.square_size // 2, board.square_size * 19 + board.square_size // 2, board.square_size * 19 + board.square_size // 2)
     while running:
@@ -130,10 +131,13 @@ def main(board: Board):
                 print("stone coord",x, y)
                 stone = board.search(point=(x, y))
                 if stone:
-                    stone.remove()
-                    board.turn()
+                    if (x, y) == moves[-1]:
+                        stone.remove()
+                        board.turn()
+                        moves.pop()
                 else:
                     added_stone = Stone(board, (x, y), board.next)
+                    moves.append((x, y))
                     board.turn()
                 board.update_liberties(added_stone)
         if event.type == pygame.KEYDOWN:
@@ -147,7 +151,6 @@ def main(board: Board):
             elif event.key == pygame.K_SPACE:
                 # calculate and end the game
                 board.calculate_winner()
-                pass
 
     pygame.quit()
 

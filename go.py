@@ -123,7 +123,8 @@ class Group(object):
         """Remove the entire group."""
         while self.stones:
             self.stones[0].remove()
-        self.board.groups.remove(self)
+        if self in self.board.groups:
+            self.board.groups.remove(self)
         del self
 
     def update_liberties(self):
