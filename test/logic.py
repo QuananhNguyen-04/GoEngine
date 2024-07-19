@@ -141,14 +141,12 @@ class Board(object):
             (19, 19), dtype=int
         )  # 19 * 19 array to hold self influence
         self.stones = np.zeros((19, 19), dtype=int)
-        self.record = []
+        self.record = [self.stones.copy()]
         self.moves = []
     def add(self, point, color):
         is_valid = self.valid_move(point, color)
         if is_valid == 0:
             return None
-        if is_valid == -1:
-            return self.moves[-1]
         self.moves.append(point)
         return self.removed_stones
     def search(self, point=None, points=[]):
@@ -186,9 +184,13 @@ class Board(object):
         
     def update_stones(self, trace_back = False):
         if trace_back is True:
-            print(self.stones)
-            print(self.record[:-1])
-            self.stones = self.record[:-1].copy()
+            if len(self.record) <= 0: 
+                return
+            self.record.pop()
+            self.stones = self.record[-1].copy()
+            print("traceback")
+            print(self.record[-1])
+            return
         self.stones = np.zeros((19, 19), int)
         for group in self.groups:
             for stone in group.stones:
@@ -250,7 +252,7 @@ class Board(object):
     
     def valid_move(self, pos, color):
         """
-        -1: undo | 0: invalid | 1: valid
+        0: invalid | 1: valid
         """
 
         # TODO: check overload on other
@@ -311,11 +313,7 @@ class Board(object):
         pos_value = self.stones[pos[1]][pos[0]]
         if pos_value == 0: # EMPTY
             return 1
-        if color == (init.BLACK if pos_value == 1 else init.WHITE):
-            return 0
-        if len(self.moves) > 1 and self.moves[-1] != pos:
-            return 0
-        return -1
+        return 0
     def update_liberties(self, added_stone : Stone = None):
         """Updates the liberties of the entire board, group by group.
 

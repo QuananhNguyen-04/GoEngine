@@ -36,23 +36,24 @@ class Game():
                         if hasattr(result, "__iter__") or len(result) == 0:
                             print("success")
                             UI.UIStone(ui_board, (x, y), board.turn())
-
-
+                    
             
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
                 elif event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                    # board.undo()
-                    pass
+                    if len(board.record) > 0:
+                        board.update_stones(True)
+                        ui_board.undo(board.record[-1])
+                        board.turn()
                 elif event.key == pygame.K_p:
-                    ui_board.turn()
+                    board.turn()
                 elif event.key == pygame.K_r:
                     running = False
                     return True
                 elif event.key == pygame.K_SPACE:
                     # calculate and end the game
-                    ui_board.calculate_winner()
+                    board.calculate_winner()
         return False
     
     def start(self):
