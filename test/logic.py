@@ -1,7 +1,6 @@
+from typing import Union
 import numpy as np
 import init
-__author__ = "Aku Kotkavuo <aku@hibana.net>"
-__version__ = "0.1"
 
 class Stone():
     def __init__(self, board, point, color):
@@ -49,7 +48,8 @@ class Stone():
         liberties = self.neighbors
         stones = self.board.search(points=self.neighbors)
         for stone in stones:
-            liberties.remove(stone.point)
+            if stone.point in liberties:
+                liberties.remove(stone.point)
         return liberties
 
     def find_group(self):
@@ -126,6 +126,50 @@ class Group(object):
             for liberty in stone.liberties:
                 liberties.add(liberty)
         self.liberties = liberties
+    def is_eye_region(self, liberty):
+        """
+        0: False | 1: True Eye | 2: False Eye
+        """
+        neighbors = []
+        # neighbors_2 = []
+        x, y = liberty
+        if x > 0: 
+            neighbors.append((x - 1, y))
+        if y > 0: 
+            neighbors.append((x, y - 1))
+        if x < 18: 
+            neighbors.append((x + 1, y))
+        if y < 18: 
+            neighbors.append((x, y + 1))
+        # if x > 0 and y > 0:
+        #     neighbors_2.append((x - 1, y -1))
+        # if x > 0 and y < 18:
+        #     neighbors_2.append((x - 1, y + 1))
+        # if x < 18 and y < 18:
+        #     neighbors_2.append((x + 1, y + 1))
+        # if x < 18 and y > 0:
+        #     neighbors_2.append((x + 1, y - 1))
+        stones: list[Stone] = self.board.search(points=neighbors)
+        # stones_2 : list[Stone] = self.board.search(points=neighbors_2)
+        color = self.color
+        for stone in stones:
+            print(stone.point)
+            if stone.color != color:
+                return 0
+        # if false eyes is similar as true eye, if player can have move on that liberty, it is false eye
+        return 1
+    def is_alive(self):
+        if len(self.stones) < 5:
+            return 0
+        if not self.liberties:
+            return 0
+        count = 0
+        for liberty in self.liberties:
+            if self.is_eye_region(liberty) == 1:
+                count += 1
+            if count >= 2:
+                return True
+        return False
 
     def __str__(self):
         """Return a list of the group's stones as a string."""
@@ -149,7 +193,7 @@ class Board(object):
             return None
         self.moves.append(point)
         return self.removed_stones
-    def search(self, point=None, points=[]):
+    def search(self, point=None, points=[]):# -> Stone | list[Stone]:
         """Search the board for a stone.
 
         The board is searched in a linear fashion, looking for either a
@@ -214,17 +258,17 @@ class Board(object):
         return False
 
     # * Later
-    def calculate_winner(self):
-        def propagation(point, color=0):
+    def calculate_winner(self, end=False):
+        def propagation(weight, point, color=0):
             # print(point)
-            influence = 3
+            influence = weight
             if color == 0: # BLACK
                 bias = 1
             if color == 1: # WHITE
                 bias = -1
             self.influence[point[1]][point[0]] = bias * (influence)
-            for dx in range(-2, 3):
-                for dy in range(-2, 3):
+            for dx in range(-(influence - 1), influence):
+                for dy in range(-(influence - 1), influence):
                     pos = (point[1] + dy, point[0] + dx)
                     if pos[0] < 0 or pos[0] > 18 or pos[1] < 0 or pos[1] > 18 :
                         continue
@@ -242,11 +286,15 @@ class Board(object):
         self.update_stones()
 
         for group in self.groups:
+            if group.is_alive() == 1:
+                weight = 20 if end else 3
+            else:
+                weight = 1
             for stone in group.stones:
                 if stone.color == init.BLACK:
-                    propagation(stone.point, 0)
+                    propagation(weight, stone.point, 0)
                 if stone.color == init.WHITE:
-                    propagation(stone.point, 1)
+                    propagation(weight, stone.point, 1)
         print(self.influence)
         # print(self.stone)
     
