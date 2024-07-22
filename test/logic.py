@@ -160,9 +160,9 @@ class Group(object):
         return 1
     def is_alive(self):
         if len(self.stones) < 5:
-            return 0
+            return False
         if not self.liberties:
-            return 0
+            return False
         count = 0
         for liberty in self.liberties:
             if self.is_eye_region(liberty) == 1:
@@ -181,12 +181,14 @@ class Board(object):
         """Create and initialize an empty board."""
         self.groups: list[Group] = []
         self.current = init.BLACK
+        self.grid_size = 19
         self.influence = np.zeros(
-            (19, 19), dtype=int
-        )  # 19 * 19 array to hold self influence
-        self.stones = np.zeros((19, 19), dtype=int)
+            (self.grid_size, self.grid_size), dtype=int
+        )  # self.grid_size * self.grid_size array to hold self influence
+        self.stones = np.zeros((self.grid_size, self.grid_size), dtype=int)
         self.record = [self.stones.copy()]
         self.moves = []
+        self.captures = {1: 0, -1: 0}
     def add(self, point, color):
         is_valid = self.valid_move(point, color)
         if is_valid == 0:
@@ -248,13 +250,10 @@ class Board(object):
         self.record.append(self.stones.copy())
     
     def ko_handling(self):
-        print("in ko handling")
         current_board = self.stones.copy()
         for previous_board in self.record:
             if np.array_equal(current_board ,previous_board):
-                print("find unchanged")
                 return True
-        print("no ko")
         return False
 
     # * Later
@@ -343,15 +342,17 @@ class Board(object):
         self.update_liberties()
         removed_stones = set()
         for group in self.groups:
+            color = 1 if group.color == init.BLACK else -1 if group.color == init.WHITE else 0
             if new_stone.group is group:
                 continue
             else:
                 if len(group.liberties) == 0:
                     for stone in group.stones:
                         removed_stones.add(stone.point)
+                        self.captures[color] += 1
                     group.remove()
         self.removed_stones = removed_stones
-        print(self.stones)
+        # print(self.stones)
         self.add_record()
         return 1
     
@@ -378,3 +379,60 @@ class Board(object):
         # if before_len > len(self.groups):
         #     ko = True
         return True
+
+    def calculate_scores(self):
+        stones_visited = np.zeros((self.grid_size, self.grid_size))
+        class Stone_Type:
+            BLACK = 1
+            WHITE = -1
+            EMPTY = 0
+
+        scores = {Stone_Type.BLACK: 0, Stone_Type.WHITE : 0}
+        def tranverse(y, x):
+            stones_visited[y][x] = 1
+            depth = 20
+            search = [(y, x, depth)]
+            team = None
+            count = 1
+            is_neutral = False
+            while search:
+                y, x, cur_depth = search.pop()
+                neighbors = []
+                if x > 0:
+                    neighbors.append((x-1, y))
+                if y > 0:
+                    neighbors.append((x, y-1))
+                if x < 18:
+                    neighbors.append((x+1, y))
+                if y < 18:
+                    neighbors.append((x, y+1))
+                for ly, lx in neighbors:
+                    this_team = self.stones[y][x]
+                    if this_team != Stone_Type.EMPTY:
+                        stone = self.search(point=(x, y))
+                        team = team or this_team
+                        if team != this_team and stone.group.is_alive():
+                            is_neutral = True
+                    if stones_visited[ly][lx] == 0:
+                        if this_team == Stone_Type.EMPTY:
+                            count += 1
+                            search.append((ly, lx, cur_depth-1))
+                    if cur_depth >= 0:
+                        stones_visited[ly][lx] = 1
+                    else:
+                        break
+            if is_neutral is True:
+                return 0, Stone_Type.EMPTY
+            return count, team
+        
+        for y in range(self.grid_size):
+            for x in range(self.grid_size):
+                # print(y,x)
+                if stones_visited[y][x] != 1 and self.stones[y][x] != Stone_Type.EMPTY:
+                    score, team = tranverse(y, x)
+                    # print(score)
+                    if team != Stone_Type.EMPTY:
+                        scores[team] += score
+        print(self.captures[1], self.captures[-1])
+        print("Black", scores[Stone_Type.BLACK] - self.captures[1])
+        print("White", scores[Stone_Type.WHITE] - self.captures[-1])

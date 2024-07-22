@@ -12,7 +12,7 @@ class Game():
         background = pygame.image.load(init.BACKGROUND).convert()
         ui_board = UI.UIBoard(screen, background)
         player = agent.Agent()
-        player.read_sgf("./3ff4-gokifu-20240715-Lian_Xiao-Fan_Tingyu.sgf")
+        player.read_sgf("./3ffi-gokifu-20240719-Oh_Kyuchul-Kim_Chongsu.sgf")
         board = logic.Board()
         running = True
         # border = board.outline
@@ -21,6 +21,21 @@ class Game():
             # pygame.time.wait(250)
             # for event in pygame.event.get():
 
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_l]:
+                if player.loaded:
+                        x, y = player.play()
+                        x -= 2
+                        y -= 2
+                        print("stone coord",x, y)
+                        result = board.add((x, y), board.current)
+                        if result is None:
+                            print("None")
+                        else: 
+                            ui_board.remove(result)
+                            if hasattr(result, "__iter__") or len(result) == 0:
+                                print("success")
+                                UI.UIStone(ui_board, (x, y), board.turn())
             event = pygame.event.wait()
             if event.type == pygame.QUIT:
                 running = False
@@ -40,7 +55,6 @@ class Game():
                             print("success")
                             UI.UIStone(ui_board, (x, y), board.turn())
                     
-            
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
@@ -58,7 +72,7 @@ class Game():
                     # calculate and end the game
                     board.calculate_winner()
                 elif event.key == pygame.K_o:
-                    board.calculate_winner(end=True)
+                    board.calculate_scores()
                 elif event.key == pygame.K_l:
                     print("left pressed")                
                     if player.loaded:
