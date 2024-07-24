@@ -87,8 +87,9 @@ class Group(object):
         self.board = board
         self.board.groups.append(self)
         self.stones : list[Stone] = [stone]
-        self.liberties = None
+        self.liberties: set[tuple[int, int]] = None
         self.color = stone.color
+        self.alive = True
 
     def merge(self, group):
         """Merge two groups.
@@ -126,49 +127,67 @@ class Group(object):
             for liberty in stone.liberties:
                 liberties.add(liberty)
         self.liberties = liberties
-    def is_eye_region(self, liberty):
+    def is_eye_region(self, liberty, visited):
         """
-        0: False | 1: True Eye | 2: False Eye
+        Checking the surround region of the liberty to determine if it near any enemies
+        0: False | 1: Eye
         """
-        neighbors = []
-        # neighbors_2 = []
-        x, y = liberty
-        if x > 0: 
-            neighbors.append((x - 1, y))
-        if y > 0: 
-            neighbors.append((x, y - 1))
-        if x < 18: 
-            neighbors.append((x + 1, y))
-        if y < 18: 
-            neighbors.append((x, y + 1))
-        # if x > 0 and y > 0:
-        #     neighbors_2.append((x - 1, y -1))
-        # if x > 0 and y < 18:
-        #     neighbors_2.append((x - 1, y + 1))
-        # if x < 18 and y < 18:
-        #     neighbors_2.append((x + 1, y + 1))
-        # if x < 18 and y > 0:
-        #     neighbors_2.append((x + 1, y - 1))
-        stones: list[Stone] = self.board.search(points=neighbors)
-        # stones_2 : list[Stone] = self.board.search(points=neighbors_2)
-        color = self.color
-        for stone in stones:
-            print(stone.point)
-            if stone.color != color:
-                return 0
-        # if false eyes is similar as true eye, if player can have move on that liberty, it is false eye
-        return 1
+        # neighbors = []
+        def bfs(liberty):
+            depth = 5
+            # neighbors_2 = []
+            x, y = liberty
+            queue = [(x, y, depth)]
+            while queue:
+                x, y, cur_depth = queue.pop(0)
+                if not visited[y][x]:
+                    visited[y][x] = True
+                else:
+                    continue
+                neighbors = []
+                if x > 0: 
+                    neighbors.append((x - 1, y))
+                if y > 0: 
+                    neighbors.append((x, y - 1))
+                if x < 18: 
+                    neighbors.append((x + 1, y))
+                if y < 18: 
+                    neighbors.append((x, y + 1))
+                for pos in neighbors:
+                    lx, ly = pos
+                    if self.board.stones[ly][lx] == 0:
+                        queue.append((ly, lx, cur_depth - 1))
+                    else:
+                        stone: Stone = self.board.search(point=(lx, ly))
+                        if stone.color == self.color:
+                            continue
+                        else:
+                            if not stone.group.alive:
+                                continue
+                            else:
+                                return False
+                            
+                if cur_depth < 0:
+                    break
+            return True
+        return bfs(liberty)
+        
     def is_alive(self):
         if len(self.stones) < 5:
             return False
         if not self.liberties:
             return False
         count = 0
+        visited = np.zeros((19, 19), dtype=bool)
         for liberty in self.liberties:
-            if self.is_eye_region(liberty) == 1:
+            if visited[liberty[1]][liberty[0]] is True:
+                continue
+            if self.is_eye_region(liberty, visited) is True:
                 count += 1
             if count >= 2:
+                self.alive = True
                 return True
+        self.alive = False
         return False
 
     def __str__(self):
@@ -257,7 +276,7 @@ class Board(object):
         return False
 
     # * Later
-    def calculate_winner(self, end=False):
+    def calculate_influence(self, end=False):
         def propagation(weight, point, color=0):
             # print(point)
             influence = weight
@@ -285,16 +304,31 @@ class Board(object):
         self.update_stones()
 
         for group in self.groups:
-            if group.is_alive() == 1:
-                weight = 20 if end else 3
+            if group.alive == 1:
+                weight = 20 if end else 5
             else:
-                weight = 1
+                weight = 2
             for stone in group.stones:
                 if stone.color == init.BLACK:
                     propagation(weight, stone.point, 0)
                 if stone.color == init.WHITE:
                     propagation(weight, stone.point, 1)
+        
+        scores = {-1: 0, 1: 0}
         print(self.influence)
+        for row in self.influence:
+            for cell in row:
+                if cell < -1:
+                    scores[-1] += 1
+                if cell > 1:
+                    scores[1] += 1
+
+        scores[1] -= self.captures[1]
+        scores[-1] -= self.captures[-1]
+        print("Black", scores[1])
+        print("White", scores[-1])
+
+
         # print(self.stone)
     
     def valid_move(self, pos, color):
@@ -353,6 +387,8 @@ class Board(object):
                     group.remove()
         self.removed_stones = removed_stones
         # print(self.stones)
+        for group in self.groups:
+            group.is_alive()
         self.add_record()
         return 1
     
@@ -381,22 +417,26 @@ class Board(object):
         return True
 
     def calculate_scores(self):
-        stones_visited = np.zeros((self.grid_size, self.grid_size))
+        stones_visited = np.zeros((self.grid_size, self.grid_size), dtype=int)
+        teritory = np.zeros((self.grid_size, self.grid_size), dtype=int)
         class Stone_Type:
             BLACK = 1
             WHITE = -1
             EMPTY = 0
 
         scores = {Stone_Type.BLACK: 0, Stone_Type.WHITE : 0}
-        def tranverse(y, x):
+        def tranverse(y, x, color):
+            print(x, y)
             stones_visited[y][x] = 1
-            depth = 20
+            depth = 3
             search = [(y, x, depth)]
-            team = None
+            land = []
+            team = 1 if color == init.BLACK else -1 if color == init.WHITE else 0
             count = 1
             is_neutral = False
             while search:
-                y, x, cur_depth = search.pop()
+                y, x, cur_depth= search.pop(0)
+                # print(x, y)
                 neighbors = []
                 if x > 0:
                     neighbors.append((x-1, y))
@@ -406,33 +446,50 @@ class Board(object):
                     neighbors.append((x+1, y))
                 if y < 18:
                     neighbors.append((x, y+1))
-                for ly, lx in neighbors:
-                    this_team = self.stones[y][x]
+                for lx, ly in neighbors:
+                    this_team = self.stones[ly][lx]
                     if this_team != Stone_Type.EMPTY:
-                        stone = self.search(point=(x, y))
-                        team = team or this_team
-                        if team != this_team and stone.group.is_alive():
-                            is_neutral = True
+                        stone = self.search((lx, ly))
+                        if team != this_team:
+                            if not stone.group.alive:
+                                is_neutral = True
+                            else:
+                                count += len(stone.group.stones)
+
                     if stones_visited[ly][lx] == 0:
                         if this_team == Stone_Type.EMPTY:
+                            land.append((ly, lx))
                             count += 1
-                            search.append((ly, lx, cur_depth-1))
+                            search.append((ly, lx, cur_depth - 1))
                     if cur_depth >= 0:
-                        stones_visited[ly][lx] = 1
-                    else:
-                        break
+                        if this_team == Stone_Type.EMPTY:
+                            stones_visited[ly][lx] = 1
+                if cur_depth < 0:
+                    break
+                
             if is_neutral is True:
                 return 0, Stone_Type.EMPTY
+            print(team, land)
+            if team == Stone_Type.BLACK:
+                for ter in land:
+                    y, x = ter
+                    teritory[y][x] = 1
+            elif team == Stone_Type.WHITE:
+                for ter in land:
+                    y, x = ter
+                    teritory[y][x] = -1
             return count, team
         
-        for y in range(self.grid_size):
-            for x in range(self.grid_size):
-                # print(y,x)
+        for group in self.groups:
+            for stone in group.stones:
+                x, y = stone.point
                 if stones_visited[y][x] != 1 and self.stones[y][x] != Stone_Type.EMPTY:
-                    score, team = tranverse(y, x)
-                    # print(score)
-                    if team != Stone_Type.EMPTY:
+                    score, team = tranverse(y, x, group.color)
+                    print(score)
+                    if team is not None and team != Stone_Type.EMPTY:
                         scores[team] += score
         print(self.captures[1], self.captures[-1])
+        print(stones_visited)
+        print(teritory)
         print("Black", scores[Stone_Type.BLACK] - self.captures[1])
         print("White", scores[Stone_Type.WHITE] - self.captures[-1])

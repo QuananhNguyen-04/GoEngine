@@ -12,7 +12,7 @@ class Game():
         background = pygame.image.load(init.BACKGROUND).convert()
         ui_board = UI.UIBoard(screen, background)
         player = agent.Agent()
-        player.read_sgf("./3ffi-gokifu-20240719-Oh_Kyuchul-Kim_Chongsu.sgf")
+        player.read_sgf("./3ff4-gokifu-20240715-Lian_Xiao-Fan_Tingyu.sgf")
         board = logic.Board()
         running = True
         # border = board.outline
@@ -22,7 +22,7 @@ class Game():
             # for event in pygame.event.get():
 
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_l]:
+            if keys[pygame.K_RIGHT]:
                 if player.loaded:
                         x, y = player.play()
                         x -= 2
@@ -70,7 +70,7 @@ class Game():
                     return True
                 elif event.key == pygame.K_SPACE:
                     # calculate and end the game
-                    board.calculate_winner()
+                    board.calculate_influence()
                 elif event.key == pygame.K_o:
                     board.calculate_scores()
                 elif event.key == pygame.K_l:

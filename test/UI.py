@@ -35,21 +35,21 @@ class UIBoard():
 
     def undo(self, record):
         print("undo")
-        print(record)
-        print(len(self.stones))
+        # print(record)
+        # print(len(self.stones))
         temp_list = self.stones.copy()
         for stone in temp_list:
-            print(stone.point, sep=" ")
+            # print(stone.point, sep=" ")
             stone.remove()
         
-        print(len(self.stones))
+        # print(len(self.stones))
         for y, row in enumerate(record):
             for x, stone in enumerate(row):
                 # print(x, y, stone)
                 if stone == 0:
                     continue
                 stone = UIStone(self, (x, y), init.BLACK if stone == 1 else init.WHITE)
-        print(len(self.stones))
+        # print(len(self.stones))
     def draw(self):
         """Draw the board to the background and blit it to the screen.
 
@@ -106,6 +106,7 @@ class UIStone():
         area_rect = pygame.Rect(blit_coords, (self.square_size, self.square_size))
         self.board.screen.blit(self.board.background, blit_coords, area_rect)
         pygame.display.update()
+
         if self in self.board.stones:
             self.board.stones.remove(self)
         del self
