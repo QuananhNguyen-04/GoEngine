@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import init
+
 # from sys import exit
 
 BACKGROUND = "images/ramin.jpg"
@@ -8,7 +9,8 @@ BOARD_SIZE = init.BOARD
 WHITE = init.WHITE
 BLACK = init.BLACK
 
-class UIBoard():
+
+class UIBoard:
     def __init__(self, screen, background):
         """Create, initialize and draw an empty board."""
         super().__init__()
@@ -24,7 +26,9 @@ class UIBoard():
         )
         print(self.outline)
         self.stones = []
+        self.temp_stones = None
         self.draw()
+
     def remove(self, stones):
         if hasattr(stones, "__iter__"):
             # print(stones)
@@ -41,7 +45,7 @@ class UIBoard():
         for stone in temp_list:
             # print(stone.point, sep=" ")
             stone.remove()
-        
+
         # print(len(self.stones))
         for y, row in enumerate(record):
             for x, stone in enumerate(row):
@@ -50,6 +54,7 @@ class UIBoard():
                     continue
                 stone = UIStone(self, (x, y), init.BLACK if stone == 1 else init.WHITE)
         # print(len(self.stones))
+
     def draw(self):
         """Draw the board to the background and blit it to the screen.
 
@@ -83,26 +88,64 @@ class UIBoard():
         self.screen.blit(self.background, (0, 0))
         pygame.display.update()
 
-class UIStone():
-    def __init__(self, board: UIBoard, point, color):
+    def add_temp(self, point, color, temp=True):
+        for stone in self.stones:
+            if stone.point == point:
+                return
+        if self.temp_stones is None:
+            if point[0] < 0 or point[1] < 0 or point[0] > 18 or point[1] > 18:
+                return
+            new_color = (color[0], color[1], color[2], 255)
+            self.temp_stones = UIStone(self, point, new_color, True)
+        else:
+            if point[0] < 0 or point[1] < 0 or point[0] > 18 or point[1] > 18:
+                self.temp_stones.remove()
+                self.temp_stones = None
+                return
+            if point == self.temp_stones.point:
+                return
+
+            for stone in self.stones:
+                if stone.point == self.temp_stones.point:
+                    self.temp_stones.remove()
+                    self.temp_stones = None
+                    stone.draw()
+                    return
+            self.temp_stones.remove()
+            new_color = (color[0], color[1], color[2], 255)
+            self.temp_stones = UIStone(self, point, new_color, True)
+
+
+class UIStone:
+    def __init__(self, board: UIBoard, point, color, sub_board=False):
         """Create, initialize and draw a stone."""
         self.board = board
         self.square_size = 32
         self.stone_size = self.square_size // 2
         self.color = color
         self.point = point
-        self.coords = (board.outline[0] + self.point[0] * self.square_size, board.outline[1] + self.point[1] * self.square_size)
+        self.coords = (
+            board.outline[0] + self.point[0] * self.square_size,
+            board.outline[1] + self.point[1] * self.square_size,
+        )
         self.draw()
-        self.board.stones.append(self)
+        if not sub_board:
+            self.board.stones.append(self)
 
     def draw(self):
         """Draw the stone as a circle."""
-        pygame.draw.circle(self.board.screen, self.color, self.coords, self.square_size // 2, 0)
+        pygame.draw.circle(
+            self.board.screen, self.color, 
+            self.coords, self.square_size // 2, 0
+        )
         pygame.display.update()
 
     def remove(self):
         """Remove the stone from board."""
-        blit_coords = (self.coords[0] - self.stone_size, self.coords[1] - self.stone_size)
+        blit_coords = (
+            self.coords[0] - self.stone_size,
+            self.coords[1] - self.stone_size,
+        )
         area_rect = pygame.Rect(blit_coords, (self.square_size, self.square_size))
         self.board.screen.blit(self.board.background, blit_coords, area_rect)
         pygame.display.update()
