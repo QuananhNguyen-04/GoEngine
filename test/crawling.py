@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 url = 'http://gokifu.com/?p='  # Replace with the actual URL containing the player blocks
 
 # Step 2: Fetch the HTML content
-for i in range(1, 10):
+for i in range(30):
     page_url = url + str(i)
     response = requests.get(page_url)
     html_content = response.text
@@ -29,11 +29,11 @@ for i in range(1, 10):
                 sgf_links.append(tag['href'])
 
 
-    print('First 5 sgf links:')
-    for i, link in enumerate(sgf_links[:5]):
-        print(link)
-        if i < 4:
-            print('\n')
+    # print('First 5 sgf links:')
+    # for i, link in enumerate(sgf_links[:5]):
+    #     print(link)
+    #     if i < 4:
+    #         print('\n')
 
     # assert False
     # Step 5: Download the .sgf files
