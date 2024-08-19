@@ -1,10 +1,8 @@
 import game
-import pygame
+# import pygame
 def main():
-    pygame.init()
     g = game.Game()
     g.start()
-    pygame.quit()
 
 
 if __name__ == "__main__":

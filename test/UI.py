@@ -1,5 +1,5 @@
 import pygame
-import numpy as np
+# import numpy as np
 import init
 
 # from sys import exit
@@ -24,7 +24,7 @@ class UIBoard:
             (self.grid_size - 1) * self.square_size,
             (self.grid_size - 1) * self.square_size,
         )
-        print(self.outline)
+        # print(self.outline)
         self.stones = []
         self.temp_stones = None
         self.draw()

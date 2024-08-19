@@ -91,11 +91,10 @@ class Board:
                             return False
                         else:
                             self.remove(group, pre_color, captures)
-                            return True
+                            # return True
                     else:
                         self.remove(group, color, captures)
-                        return True
-                    
+                        # return True
         # print("not atari")
         return not self.check_self_atari(point, color)
 
@@ -145,6 +144,7 @@ class Board:
         stone_type = self.get_stone_type(color)
 
         if self.is_valid_move(point, stone_type) is False:
+            self.stones = self.record[-1].copy()
             return False
 
         self.record.append(self.stones.copy())
