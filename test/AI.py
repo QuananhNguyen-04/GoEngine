@@ -386,12 +386,11 @@ class Rollout(nn.Module):
         self.block_0 = nn.Sequential(
             nn.Conv2d(12, 32, 7, padding="same"),
             nn.ReLU(),
+            nn.MaxPool2d(2, 2),
         )
 
         self.block_1 = nn.Sequential(
             nn.Conv2d(32, 64, 3, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 3, padding="same"),
             nn.ReLU(),
             nn.Conv2d(64, 64, 3, padding="same"),
             nn.ReLU(),
@@ -403,8 +402,6 @@ class Rollout(nn.Module):
             nn.ReLU(),
             nn.Conv2d(128, 128, 3, padding="same"),
             nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding="same"),
-            nn.ReLU(),
             nn.MaxPool2d(2, 2),
         )
 
@@ -413,14 +410,14 @@ class Rollout(nn.Module):
             nn.ReLU(),
             nn.Conv2d(256, 256, 3, padding="same"),
             nn.ReLU(),
-            nn.Conv2d(256, 256, 3, padding="same"),
+            nn.Conv2d(256, 512, 3, padding="same"),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
         )
 
         self.decision = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256 * 2 * 2, 361),
+            nn.Linear(512 * 1 * 1, 361),
             nn.Softmax(dim=1),
         )
 

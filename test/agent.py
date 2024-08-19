@@ -360,9 +360,10 @@ class Decision:
         #     self.model.load_state_dict(torch.load("rollout.pth", weights_only=True))
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.00007)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("Using device:", device)
-        self.model.to(device)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # self.device = torch_directml.device()
+        self.model.to(self.device)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
 
@@ -406,20 +407,22 @@ class Decision:
         y = torch.tensor(np.array(state_answer, dtype=np.float32))
         y = y.view(-1, 361)
         return X, y
-    def train(self, record, result):
+    def train(self, record, result, load = True):
         def accuracy_fn(y_true, y_pred):
             correct = torch.eq(y_true, y_pred).sum().item() # torch.eq() calculates where two tensors are equal
             acc = (correct / len(y_pred)) * 100
             return acc
         
-        X, y = self.transfer_data(record, result)
+        if load is True:
+            X, y = self.transfer_data(record, result)
+        else:
+            X, y = torch.tensor(np.array(record, dtype=np.float32)), torch.tensor(np.array(result, dtype=np.float32))
         print(X.shape, y.shape)
         epochs = 50
         batch_size = 128
         # Split the data into training and testing sets
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        X = X.to(device)
-        y = y.to(device)
+        X = X.to(self.device)
+        y = y.to(self.device)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=42)
         coord = torch.argmax(y_train, axis=1)
         unique, counts = torch.unique(coord, return_counts=True)
@@ -467,3 +470,9 @@ class Decision:
 
         torch.save(self.model.state_dict(), "rollout.pth")
         return
+    
+if __name__ == "__main__":
+    agent = Decision()
+    X = np.load("X_dec.npy")
+    y = np.load("y_dec.npy")
+    agent.train(X, y, False)
