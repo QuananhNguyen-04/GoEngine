@@ -180,16 +180,16 @@ class Game:
         #     return
         # sgf_files
         random.shuffle(sgf_files)
-        for idx, kifu in enumerate(sgf_files[:179]):
+        for idx, kifu in enumerate(sgf_files[:359]):
             # print(kifu)
             print(f"kifu no. {idx + 1}")
             self.run(kifu)
         pygame.quit()
-        # evaluation = agent.Evaluation()
-        # # evaluation.retrain(self.record, self.record_result)
+        evaluation = agent.Evaluation()
+        evaluation.retrain(self.record, self.record_result)
         # evaluation.cross_validation(self.record, self.record_result)
 
-        decision = agent.Decision()
-        decision.train(self.record, self.moves)
+        # decision = agent.Decision()
+        # decision.train(self.record, self.moves)
         # print("]", file=open("X_input.txt", "a", encoding="utf-8"))
         # print("]", file=open("y_input.txt", "a", encoding="utf-8"))

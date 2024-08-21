@@ -3,12 +3,13 @@ import random
 import os
 from sklearn.model_selection import train_test_split
 import torch
+import torch_directml
 # import intel_extension_for_pytorch as ipex
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from tqdm import tqdm
-from AI import AI, Rollout
+from AI import Eval, Rollout
 
 torch.manual_seed(42)
 class Agent:
@@ -156,9 +157,10 @@ class Agent:
 
 class Evaluation:
     def __init__(self):
-        self.model = AI()
-        if os.path.isfile("model1.pth"):
-            self.model.load_state_dict(torch.load("model1.pth", weights_only=True))
+        self.model = Eval()
+        # if os.path.isfile("model1.pth"):
+        #     self.model.load_state_dict(torch.load("model1.pth", weights_only=True))
+        self.device = torch_directml.device()
         self.loss_fn = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003)
 
@@ -219,31 +221,31 @@ class Evaluation:
 
         return X, y
 
-    def retrain(self, record: list[torch.Tensor], result: list[torch.Tensor]):
-        def split_data(X, y, test_size=50):
-            test_size = (len(X) // 4) if len(X) < 200 else len(X) // 3 + test_size
-            randp = torch.randperm(len(X))
-            X_test = X[randp[:test_size]]
-            y_test = y[randp[:test_size]]
-            X_train = X[randp[test_size:]]
-            y_train = y[randp[test_size:]]
-            return X_train, y_train, X_test, y_test
+    def retrain(self, record: list[torch.Tensor], result: list[torch.Tensor], load = True):
 
         model = self.model
         X, y = self.transfer_data(record, result)
-        X_train = X[(len(X) // 8) :]
-        y_train = y[(len(y) // 8) :]
-        X_test = X[: (len(X) // 8)]
-        y_test = y[: (len(y) // 8)]
+        if load is True:
+            np.save("X_eval.npy", X.numpy())
+            np.save("y_eval.npy", y.numpy())
+            print("X, y saved")
+        
+        X = X.to(self.device)
+        y = y.to(self.device)
+        self.model.to(self.device)
 
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42, shuffle=True)
         # X_train, y_train, X_test, y_test = split_data(X, y, 200)
         print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
-        # assert X.shape == (len(record), 3, 19, 19)
-        # assert y.shape == (len(record), 1)
+
         data_loader = torch.utils.data.DataLoader(
-            TensorDataset(X_train, y_train), batch_size=64, shuffle=True
+            TensorDataset(X_train, y_train), batch_size=128, shuffle=True
         )
-        epochs = 50
+        test_loader = torch.utils.data.DataLoader(
+            TensorDataset(X_test, y_test), batch_size=128, shuffle=True
+        )
+        epochs = 10
         for epoch in range(epochs):
             loss_per_epoch = 0.0
             model.train()
@@ -261,28 +263,23 @@ class Evaluation:
                     tepoch.set_postfix(loss=f"{loss.item():.4f}")
 
             model.eval()
-            if (epoch + 1) % 5 == 0:
-                with torch.inference_mode():
-                    y_pred: torch.Tensor = model(X_test)
-                    # print(y_pred.shape, y_test.shape)
-                    test_loss = self.loss_fn(y_pred, y_test)
+            if (epoch + 1) % 2 == 0:
+                with torch.no_grad():
+                    loss = 0.0
+                    for batch_X, batch_y in test_loader:
+                        y_pred: torch.Tensor = model(batch_X)
+                        # print(y_pred.shape, y_test.shape)
+                        test_loss = self.loss_fn(y_pred, batch_y)
+                        loss += test_loss.item()
                     print(
-                        f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(data_loader):.4f} | Test Loss: {test_loss.item():.4f}"
+                        f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(data_loader):.4f} | Test Loss: {loss / len(test_loader):.4f}"
                     )
 
-        model.eval()
-        with torch.inference_mode():
-            y_pred: torch.Tensor = model(X_test)
-            # print(y_pred.shape, y_test.shape)
-            test_loss = self.loss_fn(y_pred, y_test)
-            print(
-                f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(data_loader):.4f} | Test Loss: {test_loss.item():.4f}"
-            )
 
         model.eval()
-        with torch.inference_mode():
-            y_pred = model(X_test)
-            test_loss = self.loss_fn(y_pred, y_test)
+        with torch.no_grad():
+            y_pred = model(X_test[:500])
+            test_loss = self.loss_fn(y_pred, y_test[:500])
             for pred, actual in zip(y_pred[20:30], y_test[20:30]):
                 print(pred.item(), actual.item())
             print(test_loss.item())
@@ -415,6 +412,8 @@ class Decision:
         
         if load is True:
             X, y = self.transfer_data(record, result)
+            np.save("X_dec.npy", X.numpy())
+            np.save("y_dec.npy", y.numpy())
         else:
             X, y = torch.tensor(np.array(record, dtype=np.float32)), torch.tensor(np.array(result, dtype=np.float32))
         print(X.shape, y.shape)

@@ -204,9 +204,9 @@ def read_file(file_name):
     return tensor
 
 
-class AI(nn.Module):
+class Eval(nn.Module):
     def __init__(self):
-        super(AI, self).__init__()
+        super(Eval, self).__init__()
 
         self.block_1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding="same"),
@@ -281,7 +281,7 @@ class AI(nn.Module):
 
 
 def use_model():
-    model = AI()
+    model = Eval()
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)
 
@@ -360,7 +360,7 @@ def use_model():
     torch.save(model.state_dict(), "model1.pth")
 
 def eval_model():
-    model = AI()
+    model = Eval()
     if os.path.isfile("model1.pth"):
         model.load_state_dict(torch.load("model1.pth", weights_only=True))
     X_input = read_file("X_input.txt")
