@@ -55,8 +55,6 @@ class Eval(nn.Module):
         self.block_4 = nn.Sequential(
             nn.Conv2d(256, 512, 3, padding="same"),
             nn.ReLU(),
-            nn.Conv2d(512, 512, 3, padding="same"),
-            nn.ReLU(),
         )
 
         self.regression_block = nn.Sequential(
