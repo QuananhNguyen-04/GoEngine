@@ -4,6 +4,7 @@ import os
 from sklearn.model_selection import train_test_split
 import torch
 import torch_directml
+
 # import intel_extension_for_pytorch as ipex
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -12,6 +13,8 @@ from tqdm import tqdm
 from AI import Eval, Rollout
 
 torch.manual_seed(42)
+
+
 class Agent:
     def __init__(self) -> None:
 
@@ -74,8 +77,12 @@ class Agent:
 class Evaluation:
     def __init__(self):
         self.model = Eval()
-        if os.path.isfile("model.pth"):
-            self.model.load_state_dict(torch.load("model.pth", weights_only=True, map_location=torch.device('cpu')))
+        # if os.path.isfile("model.pth"):
+        #     self.model.load_state_dict(
+        #         torch.load(
+        #             "model.pth", weights_only=True, map_location=torch.device("cpu")
+        #         )
+        #     )
         self.device = torch_directml.device()
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
@@ -103,77 +110,82 @@ class Evaluation:
 
         pass
 
-    def transfer_data(self, record: list, result: list):
-        new_record: list = record.copy()
-        # new_record.insert(0, np.zeros((19, 19), np.float32))
-        # new_record.insert(0, np.zeros((19, 19), np.float32))
-        state_answer = []
-        state = []
-        # print(len(record), len(result))
-        for mini_record, mini_result in zip(new_record, result):
-            # mini_record.shape = (game_depth + 2, 19, 19)
-            # print(len(mini_record), mini_result)
-            game_depth = len(mini_record)
+    def transfer_data(
+        self, records: list[np.ndarray], results: list[float]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Transfer data from a list of records and results to a tensor of inputs and a tensor of outputs.
+
+        Args:
+            records (List[np.ndarray]): A list of records, where each record is a 3D numpy array of shape (game_depth + 2, 19, 19)
+            results (List[float]): A list of results, where each result is a float
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: A tuple of two tensors. The first tensor is the input tensor of shape (batch_size, 3, 19, 19),
+                and the second tensor is the output tensor of shape (batch_size, 1)
+        """
+        inputs = []
+        outputs = []
+        for record, result in zip(records, results):
+            game_depth = len(record)
             for idx, (state0, state1, state2) in enumerate(
-                zip(mini_record, mini_record[1:], mini_record[2:])
+                zip(record, record[1:], record[2:])
             ):
-                # print("reading mini_record", state0.shape, state1.shape, state2.shape)
-                mini_state = []
-                mini_state.append(state0)
-                mini_state.append(state1)
-                mini_state.append(state2)
-                state.append(mini_state)
-                if idx == game_depth - 3:
-                    local_X = torch.from_numpy(np.array([mini_state], dtype=np.float32))
-                    # print(local_X.shape)
-                    assert local_X.shape == (1, 3, 19, 19)
-                    # pred_score = model(local_X)
-                    # print(pred_score.item(), mini_result)
-                score = (
-                    mini_result * (idx) + 6.5 * (game_depth - idx - 1)
-                ) / game_depth + random.randint(-5, 5) / random.randint(1, 5) / 2
+                inputs.append([state0, state1, state2])
+                outputs.append(
+                    (result * idx + 6.5 * (game_depth - idx - 1)) / game_depth
+                    + random.uniform(-1.0, 1.0) / random.randint(1, 5)
+                )
 
-                state_answer.append([score])
-        # print(len(record))
-        X = torch.from_numpy(np.array(state, dtype=np.float32))
-        y = torch.from_numpy(np.array(state_answer, dtype=np.float32))
+        inputs_tensor = torch.tensor(np.array(inputs, dtype=np.float32))
+        outputs_tensor = torch.tensor(np.array(outputs, dtype=np.float32)).unsqueeze(1)
 
-        return X, y
+        return inputs_tensor, outputs_tensor
 
-    def retrain(self, record: list[torch.Tensor], result: list[torch.Tensor], load = True):
+    def retrain(self, records, results, load: bool = True) -> None:
+        """
+        Train the model with the given records and results.
+
+        Args:
+            records (List[torch.Tensor] | np.ndarray): \
+                A list of records, where each record is a 3D tensor of shape (game_depth + 2, 19, 19)
+            results (List[torch.Tensor] | np.ndarray): \
+                A list of results, where each result is a float
+            load (bool, optional): Whether to load the records and results from files. Defaults to True.
+        """
 
         model = self.model
-        X, y = self.transfer_data(record, result)
-        if load is True:
-            np.save("X_eval.npy", X.numpy())
-            np.save("y_eval.npy", y.numpy())
+        if load:
+            inputs, targets = self.transfer_data(records, results)
+            np.save("X_eval.npy", inputs.numpy())
+            np.save("y_eval.npy", targets.numpy())
             print("X, y saved")
-        
-        X = X.to(self.device)
-        y = y.to(self.device)
-        self.model.to(self.device)
+        else:
+            inputs = torch.tensor(np.array(records, dtype=np.float32))
+            targets = torch.tensor(np.array(results, dtype=np.float32))
+        inputs = inputs.to(self.device)
+        targets = targets.to(self.device)
+        model.to(self.device)
 
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42, shuffle=True)
-        # X_train, y_train, X_test, y_test = split_data(X, y, 200)
-        print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
-
-        data_loader = torch.utils.data.DataLoader(
-            TensorDataset(X_train, y_train), batch_size=128, shuffle=True
+        train_inputs, test_inputs, train_targets, test_targets = train_test_split(
+            inputs, targets, test_size=0.1, random_state=42, shuffle=False
         )
-        test_loader = torch.utils.data.DataLoader(
-            TensorDataset(X_test, y_test), batch_size=128, shuffle=True
-        )
-        epochs = 10
+
+        train_dataset = TensorDataset(train_inputs, train_targets)
+        test_dataset = TensorDataset(test_inputs, test_targets)
+        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
+
+        epochs = 50
         for epoch in range(epochs):
             loss_per_epoch = 0.0
             model.train()
             with tqdm(
-                data_loader, unit="step", ncols=80, desc=f"Epoch {epoch + 1}/{epochs}"
+                train_loader, unit="step", ncols=80, desc=f"Epoch {epoch + 1}/{epochs}"
             ) as tepoch:
-                for batch_X, batch_y in tepoch:
-                    y_pred = model(batch_X)
-                    loss: torch.Tensor = self.loss_fn(y_pred, batch_y)
+                for batch_inputs, batch_targets in tepoch:
+                    predictions = model(batch_inputs)
+                    loss = self.loss_fn(predictions, batch_targets)
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
@@ -185,25 +197,20 @@ class Evaluation:
             if (epoch + 1) % 2 == 0:
                 with torch.no_grad():
                     loss = 0.0
-                    for batch_X, batch_y in test_loader:
-                        y_pred: torch.Tensor = model(batch_X)
-                        # print(y_pred.shape, y_test.shape)
-                        test_loss = self.loss_fn(y_pred, batch_y)
-                        loss += test_loss.item()
+                    for batch_inputs, batch_targets in test_loader:
+                        predictions = model(batch_inputs)
+                        loss += self.loss_fn(predictions, batch_targets).item()
                     print(
-                        f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(data_loader):.4f} | Test Loss: {loss / len(test_loader):.4f}"
+                        f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(train_loader):.4f} | Test Loss: {loss / len(test_loader):.4f}"
                     )
-
 
         model.eval()
         with torch.no_grad():
-            y_pred = model(X_test[:500])
-            test_loss = self.loss_fn(y_pred, y_test[:500])
-            for pred, actual in zip(y_pred[20:30], y_test[20:30]):
+            predictions = model(test_inputs[:500])
+            test_loss = self.loss_fn(predictions, test_targets[:500])
+            for pred, actual in zip(predictions[20:30], test_targets[20:30]):
                 print(pred.item(), actual.item())
             print(test_loss.item())
-
-        # torch.save(model.state_dict(), "model2.pth")
 
     def cross_validation(self, record, result):
         X, y = self.transfer_data(record, result)
@@ -249,7 +256,10 @@ class Evaluation:
             for epoch in range(epochs):
                 # loss_per_epoch = 0.0
                 with tqdm(
-                    train_loader, unit="step", ncols=80, desc=f"Epoch {epoch + 1}/{epochs}" 
+                    train_loader,
+                    unit="step",
+                    ncols=80,
+                    desc=f"Epoch {epoch + 1}/{epochs}",
                 ) as tepoch:
                     for batch_X, batch_y in tepoch:
                         self.optimizer.zero_grad()
@@ -267,6 +277,7 @@ class Evaluation:
                 outputs = self.model(X_val)
                 loss = self.loss_fn(outputs, y_val)
                 print(f"Fold {i+1} MSE: {loss.item()}")
+
 
 class Decision:
 
@@ -292,11 +303,11 @@ class Decision:
             for idx in range(len(res)):
                 # print(idx)
                 mini_state = []
-                for j in range(idx - 2, idx): # 4 recent moves
+                for j in range(idx - 2, idx):  # 4 recent moves
                     if j < 0 or j >= len(mini_record):
-                        mini_state.append(np.zeros((19,19)))
-                        mini_state.append(np.zeros((19,19)))
-                        mini_state.append(np.zeros((19,19)))
+                        mini_state.append(np.zeros((19, 19)))
+                        mini_state.append(np.zeros((19, 19)))
+                        mini_state.append(np.zeros((19, 19)))
                     else:
                         temp = np.where(mini_record[j] == -1, 1, 0)
                         mini_state.append(temp)
@@ -304,8 +315,8 @@ class Decision:
                         mini_state.append(temp)
                         mini_state.append(mini_record[j])
 
-                for j in range(idx - 6, idx): # 6 recent moves
-                    moves = np.zeros((19,19))
+                for j in range(idx - 6, idx):  # 6 recent moves
+                    moves = np.zeros((19, 19))
                     if j < 0 or j >= len(res):
                         mini_state.append(moves)
                     else:
@@ -313,38 +324,49 @@ class Decision:
                         mini_state.append(moves)
                 assert len(mini_state) == 12
 
-                temp_board = np.zeros((19,19))
+                temp_board = np.zeros((19, 19))
                 temp_board[res[idx][1], res[idx][0]] = 1
 
                 state_answer.append(temp_board)
                 state.append(mini_state)
-        
+
         X = torch.tensor(np.array(state, dtype=np.float32))
         y = torch.tensor(np.array(state_answer, dtype=np.float32))
         y = y.view(-1, 361)
         return X, y
-    def train(self, record, result, load = True):
+
+    def train(self, record, result, load=True):
         def accuracy_fn(y_true, y_pred):
-            correct = torch.eq(y_true, y_pred).sum().item() # torch.eq() calculates where two tensors are equal
+            correct = (
+                torch.eq(y_true, y_pred).sum().item()
+            )  # torch.eq() calculates where two tensors are equal
             acc = (correct / len(y_pred)) * 100
             return acc
-        
+
         if load is True:
             X, y = self.transfer_data(record, result)
             np.save("X_dec.npy", X.numpy())
             np.save("y_dec.npy", y.numpy())
         else:
-            X, y = torch.tensor(np.array(record, dtype=np.float32)), torch.tensor(np.array(result, dtype=np.float32))
+            X, y = torch.tensor(np.array(record, dtype=np.float32)), torch.tensor(
+                np.array(result, dtype=np.float32)
+            )
         print(X.shape, y.shape)
         epochs = 50
         batch_size = 128
         # Split the data into training and testing sets
         X = X.to(self.device)
         y = y.to(self.device)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.05, random_state=42
+        )
         coord = torch.argmax(y_train, axis=1)
         unique, counts = torch.unique(coord, return_counts=True)
-        sorted_freq = sorted(zip(unique.cpu().numpy(), counts.cpu().numpy()), key=lambda x: x[1], reverse=True)[:50]
+        sorted_freq = sorted(
+            zip(unique.cpu().numpy(), counts.cpu().numpy()),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:50]
         print(f"Frequency in y_predict: {dict(sorted_freq)}")
         # print(f"Frequency in y_predict: {dict(zip(unique.cpu().numpy(), counts.cpu().numpy()))}")
         # Create DataLoaders
@@ -353,13 +375,14 @@ class Decision:
 
         # for sample in y_train:
         #     print(sample)
-        
+
         # Training Loop
         for epoch in range(epochs):
             self.model.train()
             loss_per_epoch = 0.0
             with tqdm(
-                train_loader, unit="step", ncols=90, desc=f"Epoch {epoch + 1}/{epochs}") as tepoch:
+                train_loader, unit="step", ncols=90, desc=f"Epoch {epoch + 1}/{epochs}"
+            ) as tepoch:
                 for batch_X, batch_y in tepoch:
                     self.optimizer.zero_grad()
                     y_pred = self.model(batch_X)
@@ -369,17 +392,21 @@ class Decision:
                     loss_per_epoch += loss.item()
                     tepoch.set_postfix(loss=f"{loss.item():.4f}")
 
-        # Validation Loop
+            # Validation Loop
             if (epoch + 1) % 2 == 0:
                 self.model.eval()
                 with torch.inference_mode():
-                    test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=2000, shuffle=True)
+                    test_loader = DataLoader(
+                        TensorDataset(X_test, y_test), batch_size=2000, shuffle=True
+                    )
                     for batch_X, batch_y in test_loader:
                         y_pred = self.model(batch_X)
                         y_predict = torch.argmax(y_pred, axis=1)
                         y_true = torch.argmax(batch_y, axis=1)
                         unique, counts = torch.unique(y_predict, return_counts=True)
-                        print(f"Frequency in y_predict: {dict(zip(unique.cpu().numpy(), counts.cpu().numpy()))}")
+                        print(
+                            f"Frequency in y_predict: {dict(zip(unique.cpu().numpy(), counts.cpu().numpy()))}"
+                        )
                         # print(y_predict.shape, y_true.shape)
                         # print(y_predict[:10], y_true[:10])
                         acc = accuracy_fn(y_predict, y_true)
@@ -388,9 +415,14 @@ class Decision:
 
         torch.save(self.model.state_dict(), "rollout.pth")
         return
-    
+
+
 if __name__ == "__main__":
-    agent = Decision()
-    X = np.load("X_dec.npy")
-    y = np.load("y_dec.npy")
-    agent.train(X, y, False)
+    # agent = Decision()
+    # X = np.load("X_dec.npy")
+    # y = np.load("y_dec.npy")
+    # agent.train(X, y, False)
+    agent = Evaluation()
+    X = np.load("X_eval.npy")
+    y = np.load("y_eval.npy")
+    agent.retrain(X, y, False)
