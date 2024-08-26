@@ -77,12 +77,13 @@ class Agent:
 class Evaluation:
     def __init__(self):
         self.model = Eval()
-        # if os.path.isfile("model.pth"):
-        #     self.model.load_state_dict(
-        #         torch.load(
-        #             "model.pth", weights_only=True, map_location=torch.device("cpu")
-        #         )
-        #     )
+        model_source = "eval.pth"
+        if os.path.isfile(model_source):
+            self.model.load_state_dict(
+                torch.load(
+                    model_source, weights_only=True, map_location=torch.device("cpu")
+                )
+            )
         self.device = torch_directml.device()
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
@@ -142,7 +143,7 @@ class Evaluation:
 
         return inputs_tensor, outputs_tensor
 
-    def retrain(self, records, results, load: bool = True) -> None:
+    def train(self, records, results, load: bool = True) -> None:
         """
         Train the model with the given records and results.
 
@@ -425,4 +426,4 @@ if __name__ == "__main__":
     agent = Evaluation()
     X = np.load("X_eval.npy")
     y = np.load("y_eval.npy")
-    agent.retrain(X, y, False)
+    agent.train(X, y, False)

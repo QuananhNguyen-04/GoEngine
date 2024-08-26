@@ -22,7 +22,6 @@ class Game:
         background = pygame.image.load(init.BACKGROUND).convert()
         ui_board = UI.UIBoard(screen, background)
 
-        evaluation = agent.Evaluation()
         player = agent.Agent()
 
         game_file = kifu if kifu is not None else "./sgf_files/3f8w-gokifu-20240529-Li_Weiqing-Ke_Jie.sgf"
@@ -100,10 +99,14 @@ class Game:
                 x = round((event.pos[0] - ui_board.outline[0]) / ui_board.square_size)
                 y = round((event.pos[1] - ui_board.outline[1]) / ui_board.square_size)
                 result = board.add((x, y), board.current)
-                if result is not False:
-                    ui_board.remove(result)
-                    if hasattr(result, "__iter__") or len(result) == 0:
-                        UI.UIStone(ui_board, (x, y), board.current)
+                ui_board.remove(result)
+                if result is False:
+                    print("None")
+
+                elif hasattr(result, "__iter__") or len(result) == 0:
+                    # print("success")
+                    # print(result)
+                    UI.UIStone(ui_board, (x, y), board.turn())
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -136,6 +139,7 @@ class Game:
                     
                 elif event.key == pygame.K_e:
                     print("evaluate")
+                    evaluation = agent.Evaluation()
                     evaluation.evaluate(board.record)
                     # print(winner)
                 # print(board.stones)
@@ -159,12 +163,12 @@ class Game:
             if file.endswith(".sgf")
         ]
         random.shuffle(sgf_files)
-        for idx, kifu_file in enumerate(sgf_files[:159]):
+        for idx, kifu_file in enumerate(sgf_files[:569]):
             print(f"Processing kifu no. {idx + 1}")
             self.run(kifu_file)
         pygame.quit()
         evaluation = agent.Evaluation()
-        evaluation.retrain(self.record, self.record_result)
+        evaluation.train(self.record, self.record_result)
         # evaluation.cross_validation(self.record, self.record_result)
 
         # decision = agent.Decision()
