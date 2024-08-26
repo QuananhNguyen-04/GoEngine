@@ -23,6 +23,7 @@ class Game:
         ui_board = UI.UIBoard(screen, background)
 
         player = agent.Agent()
+        # evaluation = agent.Evaluation()
 
         game_file = kifu if kifu is not None else "./sgf_files/3f8w-gokifu-20240529-Li_Weiqing-Ke_Jie.sgf"
         result = player.read_sgf(game_file)
@@ -139,8 +140,7 @@ class Game:
                     
                 elif event.key == pygame.K_e:
                     print("evaluate")
-                    evaluation = agent.Evaluation()
-                    evaluation.evaluate(board.record)
+                    # evaluation.evaluate(board.record)
                     # print(winner)
                 # print(board.stones)
         # print("[", file=open("X_input.txt", "a", encoding="utf-8"))

@@ -3,7 +3,7 @@ import random
 import os
 from sklearn.model_selection import train_test_split
 import torch
-import torch_directml
+# import torch_directml
 
 # import intel_extension_for_pytorch as ipex
 from torch import nn
@@ -84,8 +84,8 @@ class Evaluation:
                     model_source, weights_only=True, map_location=torch.device("cpu")
                 )
             )
-        self.device = torch_directml.device()
-        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = torch_directml.device()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003)
         total_params = sum(p.numel() for p in self.model.parameters())
@@ -212,6 +212,7 @@ class Evaluation:
             for pred, actual in zip(predictions[20:30], test_targets[20:30]):
                 print(pred.item(), actual.item())
             print(test_loss.item())
+        torch.save(model.state_dict(), "eval.pth")
 
     def cross_validation(self, record, result):
         X, y = self.transfer_data(record, result)
