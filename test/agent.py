@@ -87,7 +87,7 @@ class Evaluation:
         # self.device = torch_directml.device()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0003)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
 
@@ -134,9 +134,10 @@ class Evaluation:
             ):
                 inputs.append([state0, state1, state2])
                 outputs.append(
-                    (result * idx + 6.5 * (game_depth - idx - 1)) / game_depth
-                    + random.uniform(-1.0, 1.0) / random.randint(1, 5)
-                )
+                    torch.tanh(
+                        torch.tensor(result * idx * (game_depth - idx - 1) / game_depth 
+                                    + random.uniform(-2.0, 2.0) / random.randint(1, 5))
+                ))
 
         inputs_tensor = torch.tensor(np.array(inputs, dtype=np.float32))
         outputs_tensor = torch.tensor(np.array(outputs, dtype=np.float32)).unsqueeze(1)
