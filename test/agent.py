@@ -77,16 +77,16 @@ class Agent:
 class Evaluation:
     def __init__(self):
         self.model = Eval()
-        model_source = "eval.pth"
-        if os.path.isfile(model_source):
-            self.model.load_state_dict(
-                torch.load(
-                    model_source, weights_only=True, map_location=torch.device("cpu")
-                )
-            )
+        # model_source = "eval.pth"
+        # if os.path.isfile(model_source):
+        #     self.model.load_state_dict(
+        #         torch.load(
+        #             model_source, weights_only=True, map_location=torch.device("cpu")
+        #         )
+        #     )
         # self.device = torch_directml.device()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.HuberLoss()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0003)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
@@ -127,18 +127,38 @@ class Evaluation:
         """
         inputs = []
         outputs = []
-        for record, result in zip(records, results):
-            game_depth = len(record)
-            for idx, (state0, state1, state2) in enumerate(
-                zip(record, record[1:], record[2:])
-            ):
-                inputs.append([state0, state1, state2])
-                outputs.append(
-                    torch.tanh(
-                        torch.tensor(result * idx * (game_depth - idx - 1) / game_depth 
-                                    + random.uniform(-2.0, 2.0) / random.randint(1, 5))
-                ))
-
+        # for record, result in zip(records, results):
+        #     game_depth = len(record)
+        #     for idx, (state0, state1, state2) in enumerate(
+        #         zip(record, record[1:], record[2:])
+        #     ):
+        #         inputs.append([state0, state1, state2])
+        #         outputs.append(
+        #             torch.tanh(
+        #                 torch.tensor(result * idx * (game_depth - idx - 1) / game_depth 
+        #                             + random.uniform(-2.0, 2.0) / random.randint(1, 5))
+        #         ))
+        
+        for mini_record, res in zip(records, results):
+            game_depth = len(mini_record)
+            for idx, _ in enumerate(mini_record):
+                # print(idx)
+                mini_state = []
+                for j in range(idx - 6, idx):  # 6 recent moves
+                    if j < 0 or j >= len(mini_record):
+                        mini_state.append(np.zeros((19, 19)))
+                        mini_state.append(np.zeros((19, 19)))
+                    else:
+                        mini_state.append(np.where(mini_record[j] == -1, 1, 0))
+                        mini_state.append(np.where(mini_record[j] == 1, 1, 0))
+                mini_output = torch.tanh(
+                    torch.tensor(res * idx * (game_depth - idx - 1) / game_depth / 5
+                                + random.uniform(-2.0, 2.0) / random.randint(1, 5))
+                )
+                assert len(mini_state) == 12
+                # print(mini_output)
+                inputs.append(mini_state)
+                outputs.append(mini_output)
         inputs_tensor = torch.tensor(np.array(inputs, dtype=np.float32))
         outputs_tensor = torch.tensor(np.array(outputs, dtype=np.float32)).unsqueeze(1)
 
@@ -303,28 +323,17 @@ class Decision:
 
         for mini_record, res in zip(record, result):
             # print(len(mini_record), len(res), res[0], res[-1])
-            for idx in range(len(res)):
+            for idx, _ in enumerate(res):
                 # print(idx)
                 mini_state = []
-                for j in range(idx - 2, idx):  # 4 recent moves
+                for j in range(idx - 6, idx):  # 6 recent moves
                     if j < 0 or j >= len(mini_record):
                         mini_state.append(np.zeros((19, 19)))
                         mini_state.append(np.zeros((19, 19)))
-                        mini_state.append(np.zeros((19, 19)))
                     else:
-                        temp = np.where(mini_record[j] == -1, 1, 0)
-                        mini_state.append(temp)
-                        temp = np.where(mini_record[j] == 1, 1, 0)
-                        mini_state.append(temp)
-                        mini_state.append(mini_record[j])
+                        mini_state.append(np.where(mini_record[j] == -1, 1, 0))
+                        mini_state.append(np.where(mini_record[j] == 1, 1, 0))
 
-                for j in range(idx - 6, idx):  # 6 recent moves
-                    moves = np.zeros((19, 19))
-                    if j < 0 or j >= len(res):
-                        mini_state.append(moves)
-                    else:
-                        moves[res[j][1], res[j][0]] = 1
-                        mini_state.append(moves)
                 assert len(mini_state) == 12
 
                 temp_board = np.zeros((19, 19))
