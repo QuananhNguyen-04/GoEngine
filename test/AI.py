@@ -24,12 +24,11 @@ class Eval(nn.Module):
     def __init__(self):
         super(Eval, self).__init__()
         self.block_0 = nn.Sequential(
-            nn.Conv2d(3, 32, 7, padding="same"),
+            nn.Conv2d(12, 32, 7, padding="same"),
             nn.LeakyReLU(),
-            nn.MaxPool2d(2, 2),
         )
         self.block_1 = nn.Sequential(
-            nn.Conv2d(12, 64, 3, padding="same"), # 64 * 9 * 9
+            nn.Conv2d(32, 64, 3, padding="same"), # 64 * 19 * 19
             nn.BatchNorm2d(64),
             nn.LeakyReLU(),
             nn.Conv2d(64, 64, 3, padding="same"),
@@ -38,37 +37,37 @@ class Eval(nn.Module):
         )
 
         self.block_2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding="same"), # 128 * 9 * 9
+            nn.Conv2d(64, 128, 3, padding="same"), # 128 * 19 * 19
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Conv2d(128, 128, 3, padding="same"),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
-            nn.MaxPool2d(2, 2),
         )
 
         self.block_3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding="same"), # 256 * 4 * 4
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 128, 3, padding="same"), # 128 * 19 * 19
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(),
-            nn.Conv2d(256, 256, 3, padding="same"),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 128, 3, padding="same"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            nn.Conv2d(128, 128, 3, padding="same"), # 128 * 19 * 19
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(),
         )
 
         self.block_4 = nn.Sequential(
-            nn.Conv2d(256, 256, 3, padding="same"), # 256 * 4 * 4
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 1, 3, padding="same"),
+            nn.BatchNorm2d(1),
             nn.LeakyReLU(),
-            nn.Conv2d(256, 256, 3, padding="same"),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(),
-            nn.MaxPool2d(2, 2),
         )
 
         self.regression_block = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256 * 2 * 2, 1), 
+            nn.Linear(19 * 19, 256), 
+            nn.LeakyReLU(),
+            nn.Linear(256, 1),
             nn.Tanh(),
         )
 

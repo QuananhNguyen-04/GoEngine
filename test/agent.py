@@ -152,8 +152,8 @@ class Evaluation:
                         mini_state.append(np.where(mini_record[j] == -1, 1, 0))
                         mini_state.append(np.where(mini_record[j] == 1, 1, 0))
                 mini_output = torch.tanh(
-                    torch.tensor(res * idx * (game_depth - idx - 1) / game_depth / 5
-                                + random.uniform(-2.0, 2.0) / random.randint(1, 5))
+                    torch.tensor((res * idx * (game_depth - idx - 1) / game_depth 
+                                + random.uniform(-2.0, 2.0) / random.randint(1, 5)) / 2)
                 )
                 assert len(mini_state) == 12
                 # print(mini_output)
