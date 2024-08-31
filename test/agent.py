@@ -195,10 +195,10 @@ class Evaluation:
 
         train_dataset = TensorDataset(train_inputs, train_targets)
         test_dataset = TensorDataset(test_inputs, test_targets)
-        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=256, shuffle=True)
 
-        epochs = 50
+        epochs = 20
         for epoch in range(epochs):
             loss_per_epoch = 0.0
             model.train()
@@ -228,9 +228,9 @@ class Evaluation:
 
         model.eval()
         with torch.no_grad():
-            predictions = model(test_inputs[:500])
-            test_loss = self.loss_fn(predictions, test_targets[:500])
-            for pred, actual in zip(predictions[20:30], test_targets[20:30]):
+            predictions = model(test_inputs[:1500])
+            test_loss = self.loss_fn(predictions, test_targets[:1500])
+            for pred, actual in zip(predictions[20:50], test_targets[20:50]):
                 print(pred.item(), actual.item())
             print(test_loss.item())
         torch.save(model.state_dict(), "eval.pth")

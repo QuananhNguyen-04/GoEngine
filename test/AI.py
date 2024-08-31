@@ -21,10 +21,11 @@ def read_file(file_name):
 
 
 class Eval(nn.Module):
+
     def __init__(self):
         super(Eval, self).__init__()
         self.block_0 = nn.Sequential(
-            nn.Conv2d(12, 32, 7, padding="same"),
+            nn.Conv2d(6, 32, 7, padding="same"),
             nn.LeakyReLU(),
         )
         self.block_1 = nn.Sequential(
@@ -37,15 +38,15 @@ class Eval(nn.Module):
         )
 
         self.block_2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding="same"), # 128 * 19 * 19
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(),
-            nn.Conv2d(128, 128, 3, padding="same"),
+            nn.Conv2d(64, 128, 3, padding="same"), # 256 * 19 * 19
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
         )
 
         self.block_3 = nn.Sequential(
+            nn.Conv2d(128, 128, 3, padding="same"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
             nn.Conv2d(128, 128, 3, padding="same"), # 128 * 19 * 19
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
@@ -58,15 +59,18 @@ class Eval(nn.Module):
         )
 
         self.block_4 = nn.Sequential(
-            nn.Conv2d(128, 1, 3, padding="same"),
+            nn.Conv2d(128, 1, 1, padding="same"),
             nn.BatchNorm2d(1),
             nn.LeakyReLU(),
         )
 
         self.regression_block = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(19 * 19, 256), 
-            nn.LeakyReLU(),
+            nn.Linear(19 * 19, 1256), 
+            nn.BatchNorm1d(1256),
+            nn.Tanh(),
+            nn.Linear(1256, 256),
+            nn.Tanh(),
             nn.Linear(256, 1),
             nn.Tanh(),
         )

@@ -37,7 +37,7 @@ class Game:
             return char.isalpha()
 
         if result[0][2:] == "R" or is_result_alpha(result[0][2]):
-            winner *= 20
+            winner *= 15
         else:
             winner *= float(result[0][2:])
 
@@ -163,7 +163,7 @@ class Game:
             if file.endswith(".sgf")
         ]
         random.shuffle(sgf_files)
-        for idx, kifu_file in enumerate(sgf_files[:569]):
+        for idx, kifu_file in enumerate(sgf_files[:100]):
             print(f"Processing kifu no. {idx + 1}")
             self.run(kifu_file)
         pygame.quit()
