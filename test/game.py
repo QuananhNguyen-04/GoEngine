@@ -163,7 +163,7 @@ class Game:
             if file.endswith(".sgf")
         ]
         random.shuffle(sgf_files)
-        for idx, kifu_file in enumerate(sgf_files[:100]):
+        for idx, kifu_file in enumerate(sgf_files[:-1]):
             print(f"Processing kifu no. {idx + 1}")
             self.run(kifu_file)
         pygame.quit()

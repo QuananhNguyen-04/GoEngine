@@ -95,14 +95,17 @@ class Evaluation:
         state = []
         model = self.model
         print(type(model))
-        if len(record) < 3:
-            for _ in range(3 - len(record)):
-                state.append(np.zeros((19, 19), np.float32))
-        for move in record[-3:]:
-            state.append(move)
-        assert len(state) == 3
+        idx = len(record) - 1
+        for j in range(idx - 6, idx):  # 6 recent moves
+            if j < 0 or j >= len(record):
+                state.append(np.zeros((19, 19)))
+                state.append(np.zeros((19, 19)))
+            else:
+                state.append(np.where(record[j] == -1, 1, 0))
+                state.append(np.where(record[j] == 1, 1, 0))
         X = torch.from_numpy(np.array([state], dtype=np.float32))
-        assert X.shape == (1, 3, 19, 19)
+        print(X.shape)
+        assert X.shape == (1, 12, 19, 19)
         model.eval()
         with torch.inference_mode():
             y_pred = model(X)
