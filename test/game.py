@@ -150,7 +150,15 @@ class Game:
         # print("retrain")
         board.record.insert(0, np.zeros_like(board.stones))
         board.record.insert(0, np.zeros_like(board.stones))
-        self.record.append(board.record) # shape (1, len + 2, 19, 19)
+        self.random_2d_array = np.random.randint(0, 10, size=(5, 5))
+        record_rotated = board.record.copy()
+        
+        print(record_rotated[-1][0].shape)
+        for turn in range(3):
+            for _, board_state in enumerate(board.record.copy()):
+                record_rotated.append(np.rot90(board_state, turn + 1, axes=(0, 1)))
+        self.record.append(record_rotated)
+        assert len(board.record) * 4 == len(self.record[-1])
         self.record_result.append(winner) # shape (1, 1)
         self.moves.append(moves)
         return False

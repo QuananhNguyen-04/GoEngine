@@ -87,7 +87,7 @@ class Evaluation:
         # self.device = torch_directml.device()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fn = nn.HuberLoss()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0003)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003, weight_decay=2e-3)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
 
@@ -143,7 +143,7 @@ class Evaluation:
         #         ))
         
         for mini_record, res in zip(records, results):
-            game_depth = len(mini_record)
+            game_depth = len(mini_record) // 4
             for idx, _ in enumerate(mini_record):
                 # print(idx)
                 mini_state = []

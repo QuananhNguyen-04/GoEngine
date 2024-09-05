@@ -19,59 +19,47 @@ def read_file(file_name):
     tensor.requires_grad = True
     return tensor
 
+class Block(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, layers = 2):
+        super(Block, self).__init__()
+        if layers == 1:
+            self.block = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size, padding="same"),
+                nn.LeakyReLU(),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.block = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size, padding="same"),
+                nn.LeakyReLU(),
+                nn.BatchNorm2d(out_channels),
+                nn.Conv2d(out_channels, out_channels, kernel_size, padding="same"),
+                nn.LeakyReLU(),
+                nn.BatchNorm2d(out_channels),
+            )
+    def forward(self, x):
+        return self.block(x)
 
 class Eval(nn.Module):
 
     def __init__(self):
         super(Eval, self).__init__()
-        self.block_0 = nn.Sequential(
-            nn.Conv2d(12, 32, 7, padding="same"),
-            nn.LeakyReLU(),
-        )
-        self.block_1 = nn.Sequential(
-            nn.Conv2d(32, 64, 3, padding="same"), # 64 * 19 * 19
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 64, 3, padding="same"),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(64),
-        )
+        self.block_0 = Block(12, 32, 7, 1)
 
-        self.block_2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding="same"), # 256 * 19 * 19
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(128),
-        )
+        self.block_1 = Block(32, 128, 3, 1)
 
-        self.block_3 = nn.Sequential(
-            nn.Conv2d(128, 128, 3, padding="same"),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, padding="same"), # 128 * 19 * 19
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, padding="same"),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, padding="same"), # 128 * 19 * 19
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(128),
-        )
+        self.block_2 = Block(128, 256, 3)
+        
+        self.block_3 = Block(256, 256, 3)
 
-        self.block_4 = nn.Sequential(
-            nn.Conv2d(128, 1, 1, padding="same"),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(1),
-        )
+        self.block_4 = Block(256, 1, 1, 1)
 
         self.regression_block = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(19 * 19, 1256), 
-            nn.BatchNorm1d(1256),
+            nn.Linear(19 * 19, 1024), 
+            nn.BatchNorm1d(1024),
             nn.LeakyReLU(),
-            nn.Linear(1256, 256),
-            nn.LeakyReLU(),
-            nn.Linear(256, 1),
+            nn.Linear(1024, 1),
             nn.Tanh(),
         )
 
@@ -80,12 +68,10 @@ class Eval(nn.Module):
         debug = False
         x = self.block_0(x)
         x = self.block_1(x)
-        print(x.shape) if debug else None
         x = self.block_2(x)
         print(x.shape) if debug else None
         x = self.block_3(x)
         x = self.block_4(x)
-        print(x.shape) if debug else None
         x = self.regression_block(x)
         assert not debug
         return x
