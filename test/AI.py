@@ -46,9 +46,9 @@ class Eval(nn.Module):
         super(Eval, self).__init__()
         self.block_0 = Block(12, 32, 7, 1)
 
-        self.block_1 = Block(32, 128, 3, 1)
+        self.block_1 = Block(32, 64, 3, 1)
 
-        self.block_2 = Block(128, 256, 3)
+        self.block_2 = Block(64, 256, 3)
         
         self.block_3 = Block(256, 256, 3)
 

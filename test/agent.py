@@ -162,10 +162,11 @@ class Evaluation:
                 # print(mini_output)
                 inputs.append(mini_state)
                 outputs.append(mini_output)
-        inputs_tensor = torch.tensor(np.array(inputs, dtype=np.float32))
-        outputs_tensor = torch.tensor(np.array(outputs, dtype=np.float32)).unsqueeze(1)
-
-        return inputs_tensor, outputs_tensor
+        # inputs_tensor = torch.tensor(np.array(inputs, dtype=np.float16))
+        # outputs_tensor = torch.tensor(np.array(outputs, dtype=np.float16)).unsqueeze(1)
+        inputs_array = np.array(inputs, dtype=np.int8)
+        outputs_array = np.array(outputs, dtype=np.float16)
+        return inputs_array, outputs_array
 
     def train(self, records, results, load: bool = True) -> None:
         """
@@ -182,16 +183,19 @@ class Evaluation:
         model = self.model
         if load:
             inputs, targets = self.transfer_data(records, results)
-            np.save("X_eval.npy", inputs.numpy())
-            np.save("y_eval.npy", targets.numpy())
+            np.save("X_eval.npy", inputs)
+            np.save("y_eval.npy", targets)
             print("X, y saved")
         else:
-            inputs = torch.tensor(np.array(records, dtype=np.float32))
-            targets = torch.tensor(np.array(results, dtype=np.float32))
+            inputs, targets = records, results
+
+        inputs = torch.from_numpy(np.array(inputs, dtype=np.float32))
+        targets = torch.from_numpy(np.array(targets, dtype=np.float32)).unsqueeze(1)
         inputs = inputs.to(self.device)
         targets = targets.to(self.device)
         model.to(self.device)
-
+        # print(f"Model is currently on device: {next(model.parameters()).device}")
+        # print(f"Inputs are currently on device: {inputs.device}")
         train_inputs, test_inputs, train_targets, test_targets = train_test_split(
             inputs, targets, test_size=0.1, random_state=42, shuffle=False
         )
