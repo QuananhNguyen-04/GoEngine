@@ -154,9 +154,9 @@ class Game:
         record_rotated = board.record.copy()
         
         # print(record_rotated[-1][0].shape)
-        for _ in range(2):
+        for turn in range(2):
             for _, board_state in enumerate(board.record.copy()):
-                record_rotated.append(np.rot90(board_state, random.randint(1, 3), axes=(0, 1)))
+                record_rotated.append(np.rot90(board_state, turn + 1, axes=(0, 1)))
         self.record.append(record_rotated)
         # assert len(board.record) * 4 == len(self.record[-1])
         self.record_result.append(winner) # shape (1, 1)

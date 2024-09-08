@@ -25,17 +25,19 @@ class Block(nn.Module):
         if layers == 1:
             self.block = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size, padding="same"),
-                nn.LeakyReLU(),
+                nn.ReLU(),
                 nn.BatchNorm2d(out_channels),
             )
         else:
             self.block = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size, padding="same"),
-                nn.LeakyReLU(),
+                nn.ReLU(),
                 nn.BatchNorm2d(out_channels),
+                nn.Dropout2d(p=0.3),
                 nn.Conv2d(out_channels, out_channels, kernel_size, padding="same"),
-                nn.LeakyReLU(),
+                nn.ReLU(),
                 nn.BatchNorm2d(out_channels),
+                nn.Dropout2d(p=0.3),
             )
     def forward(self, x):
         return self.block(x)
@@ -46,13 +48,14 @@ class Eval(nn.Module):
         super(Eval, self).__init__()
         self.block_0 = Block(12, 32, 7, 1)
 
-        self.block_1 = Block(32, 64, 3, 1)
+        self.block_1 = Block(32, 128, 5, 1)
 
-        self.block_2 = Block(64, 256, 3)
+        self.block_2 = Block(128, 128, 3)
         
-        self.block_3 = Block(256, 256, 3)
+        self.block_3 = Block(128, 128, 3)
+        self.block_3_1 = Block(128, 128, 3)
 
-        self.block_4 = Block(256, 1, 1, 1)
+        self.block_4 = Block(128, 1, 1, 1)
 
         self.regression_block = nn.Sequential(
             nn.Flatten(),
@@ -71,6 +74,7 @@ class Eval(nn.Module):
         x = self.block_2(x)
         print(x.shape) if debug else None
         x = self.block_3(x)
+        x = self.block_3_1(x)
         x = self.block_4(x)
         x = self.regression_block(x)
         assert not debug

@@ -2,6 +2,7 @@ import sgf
 import random
 import os
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
 import torch
 # import torch_directml
 
@@ -86,8 +87,8 @@ class Evaluation:
         #     )
         # self.device = torch_directml.device()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.loss_fn = nn.HuberLoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003, weight_decay=2e-3)
+        self.loss_fn = nn.MSELoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.00001, weight_decay=3e-2)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
 
@@ -130,17 +131,6 @@ class Evaluation:
         """
         inputs = []
         outputs = []
-        # for record, result in zip(records, results):
-        #     game_depth = len(record)
-        #     for idx, (state0, state1, state2) in enumerate(
-        #         zip(record, record[1:], record[2:])
-        #     ):
-        #         inputs.append([state0, state1, state2])
-        #         outputs.append(
-        #             torch.tanh(
-        #                 torch.tensor(result * idx * (game_depth - idx - 1) / game_depth 
-        #                             + random.uniform(-2.0, 2.0) / random.randint(1, 5))
-        #         ))
         
         for mini_record, res in zip(records, results):
             game_depth = len(mini_record) // 4
@@ -203,7 +193,7 @@ class Evaluation:
         train_dataset = TensorDataset(train_inputs, train_targets)
         test_dataset = TensorDataset(test_inputs, test_targets)
         train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=256, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=1024, shuffle=True)
 
         epochs = 20
         for epoch in range(epochs):
@@ -229,8 +219,14 @@ class Evaluation:
                     for batch_inputs, batch_targets in test_loader:
                         predictions = model(batch_inputs)
                         loss += self.loss_fn(predictions, batch_targets).item()
+                        pred = torch.sign(predictions).cpu().numpy()
+                        ans = torch.sign(batch_targets).cpu().numpy()
+                        score = f1_score(ans, pred)
                     print(
                         f"Epoch: {epoch + 1} | Loss : {loss_per_epoch/len(train_loader):.4f} | Test Loss: {loss / len(test_loader):.4f}"
+                    )
+                    print(
+                        f"F1_score: {score:.4f}"
                     )
 
         model.eval()
