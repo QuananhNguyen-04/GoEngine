@@ -32,7 +32,6 @@ class Block(nn.Module):
             self.block = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size, padding="same"),
                 nn.ReLU(),
-                nn.BatchNorm2d(out_channels),
                 nn.Dropout2d(p=0.3),
                 nn.Conv2d(out_channels, out_channels, kernel_size, padding="same"),
                 nn.ReLU(),
@@ -41,6 +40,29 @@ class Block(nn.Module):
             )
     def forward(self, x):
         return self.block(x)
+    
+class Residual(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, layers=2):
+        assert in_channels == out_channels
+        super().__init__()
+        self.activation = nn.ReLU()
+        self.batchnorm = nn.BatchNorm2d(out_channels)
+        self.dropout = nn.Dropout2d(p=0.3)
+        self.convo1 = nn.Conv2d(in_channels, out_channels, kernel_size, padding="same")
+        self.convo2 = nn.Conv2d(out_channels, out_channels, kernel_size, padding="same")
+    def forward(self, x):
+        res = x
+        x = self.convo1(x)
+        x = self.batchnorm(x)
+        x = self.dropout(x)
+        x = self.activation(x)
+
+        x = self.convo2(x)
+        x = self.batchnorm(x)
+        x = self.dropout(x)
+        x = x + res
+        x = self.activation(x)
+        return x
 
 class Eval(nn.Module):
 
@@ -50,10 +72,10 @@ class Eval(nn.Module):
 
         self.block_1 = Block(32, 128, 5, 1)
 
-        self.block_2 = Block(128, 128, 3)
+        self.block_2 = Residual(128, 128, 3)
         
-        self.block_3 = Block(128, 128, 3)
-        self.block_3_1 = Block(128, 128, 3)
+        self.block_3 = Residual(128, 128, 3)
+        self.block_3_1 = Residual(128, 128, 3)
 
         self.block_4 = Block(128, 1, 1, 1)
 
@@ -61,6 +83,7 @@ class Eval(nn.Module):
             nn.Flatten(),
             nn.Linear(19 * 19, 1024), 
             nn.BatchNorm1d(1024),
+            nn.Dropout(),
             nn.LeakyReLU(),
             nn.Linear(1024, 1),
             nn.Tanh(),

@@ -87,8 +87,8 @@ class Evaluation:
         #     )
         # self.device = torch_directml.device()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.loss_fn = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.00001, weight_decay=3e-2)
+        self.loss_fn = nn.HuberLoss()
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=0.001, weight_decay=3e-4)
         total_params = sum(p.numel() for p in self.model.parameters())
         print(total_params)
 
